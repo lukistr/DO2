@@ -1,0 +1,19 @@
+---
+- hosts: all
+  roles:
+    - geerlingguy.docker
+
+  tasks:
+    - name: Add vagrant user to docker group
+      user:
+        name: 'vagrant'
+        groups: docker
+        append: yes
+
+    - name: Spin-up one NGINX container
+      docker_container:
+        name: con-nginx
+        image: nginx
+        state: started
+        ports:
+          - "80:80"

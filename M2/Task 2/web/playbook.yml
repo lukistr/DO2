@@ -1,0 +1,36 @@
+---
+- hosts: all
+  roles:
+    - geerlingguy.apache
+
+  tasks:
+    - name: Add web host
+      lineinfile:
+        path: /etc/hosts
+        line: '192.168.100.101 web.do2.lab web'
+    - name: Add db host
+      lineinfile:
+        path: /etc/hosts
+        line: '192.168.100.102 db.do2.lab db'
+    - name: Install PHP
+      apt:
+        name:
+          - php
+          - php-mysqlnd
+    - name: Open firewall port
+      ufw:
+        rule: allow
+        port: 80
+    - name: Delete all files in /var/www/html/
+      file:
+        path: /var/www/html/
+        state: absent
+    - name: Copy site files
+      copy: 
+        src: /vagrant/web/
+        dest: /var/www/html/
+    - name: Start web server
+      service:
+        name: apache2
+        state: started
+        enabled: yes

@@ -1,0 +1,16 @@
+---
+- hosts: all
+  roles:
+    - geerlingguy.mysql
+
+  tasks:
+    - name: Add web host
+      lineinfile:
+        path: /etc/hosts
+        line: '192.168.100.101 web.do2.lab web'
+    - name: Add db host
+      lineinfile:
+        path: /etc/hosts
+        line: '192.168.100.102 db.do2.lab db'
+    - name: Import DB 
+      shell: mysql -u root --password=root < db_setup.sql
