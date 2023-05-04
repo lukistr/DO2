@@ -1,0 +1,19 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+    
+    config.ssh.insert_key = false
+
+    config.vm.define "docker" do |docker|
+        docker.vm.box="luki_strike/Ubuntu"
+        docker.vm.hostname = "docker.do2.lab"
+        docker.vm.synced_folder ".", "/vagrant"
+        docker.vm.provider :virtualbox do |v|
+            v.memory = 3584
+            v.cpus = 1
+        end
+        docker.vm.network "private_network", ip: "192.168.100.201"
+        docker.vm.provision "shell", path: "install.sh"
+    end
+end
