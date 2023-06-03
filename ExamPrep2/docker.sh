@@ -27,3 +27,4 @@ mv terraform /usr/local/bin
 echo "* Install puppet and docker module ..."
 sudo apt install -y puppet
 puppet module install puppetlabs-docker
+puppet module install puppetlabs-vcsrepo
