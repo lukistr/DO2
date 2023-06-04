@@ -16,3 +16,5 @@ M6 - Work
 M7 - Work
 
 ExamPrep2 - Full Work
+
+Exam - Work, but don't have dashboard in grafana.
