@@ -1,0 +1,191 @@
+---
+- name: Configure name resolution between web and db
+  hosts: all
+  become: true
+  tasks:
+    - name: Add docker to hosts file on db
+      lineinfile:
+        dest: /etc/hosts
+        line: '192.168.100.101 docker.do2.exam docker'
+      when: "'db' in inventory_hostname"
+
+    - name: Add web to hosts file on db
+      lineinfile:
+        dest: /etc/hosts
+        line: '192.168.100.102 web.do2.exam web'
+      when: "'db' in inventory_hostname"
+
+    - name: Add db to hosts file on db
+      lineinfile:
+        dest: /etc/hosts
+        line: '192.168.100.103 db.do2.exam db'
+      when: "'db' in inventory_hostname"
+
+    - name: Add db to hosts file on web
+      lineinfile:
+        dest: /etc/hosts
+        line: '192.168.100.101 docker.do2.exam docker'
+      when: "'web' in inventory_hostname"
+    
+    - name: Add db to hosts file on web
+      lineinfile:
+        dest: /etc/hosts
+        line: '192.168.100.102 web.do2.exam web'
+      when: "'web' in inventory_hostname"
+
+    - name: Add db to hosts file on web
+      lineinfile:
+        dest: /etc/hosts
+        line: '192.168.100.103 db.do2.exam db'
+      when: "'web' in inventory_hostname"
+
+- name: Configure web and db
+  hosts: web, db
+  become: true
+  tasks:
+    - name: Install Apache, PHP, and libraries on web
+      apt:
+        name: [apache2, php, php-mysql]
+        state: present
+      when: "'web' in inventory_hostname"
+
+    - name: Install MariaDB on db
+      apt:
+        name: [mariadb-server, mariadb-client]
+        state: present
+      when: "'db' in inventory_hostname"
+
+    - name: Start and enable Apache service on web
+      service:
+        name: apache2
+        state: started
+        enabled: true
+      when: "'web' in inventory_hostname"
+
+    - name: Make sure MariaDB service is running and listening on all interfaces on db
+      lineinfile:
+        dest: /etc/mysql/mariadb.conf.d/50-server.cnf
+        regexp: '^bind-address.*'
+        line: 'bind-address = 0.0.0.0'
+      notify:
+        - restart mariadb
+      when: "'db' in inventory_hostname"
+
+  handlers:
+    - name: restart mariadb
+      service:
+        name: mariadb
+        state: restarted
+
+- name: Download repositories
+  hosts: web, db
+  become: true
+  tasks:
+    - name: Make git directory
+      shell: mkdir /code
+
+    - name: Download the repository
+      shell: git clone https://github.com/shekeriev/do2-app-pack.git /code
+
+- name: Deploy applications to virtual hosts
+  hosts: web
+  become: true
+  tasks:
+    - name: Create directories for virtual hosts
+      file:
+        path: "/var/www/app1"
+        state: directory
+
+    - name: Copy app1 files to virtual host directory
+      copy:
+        src: /code/app2/web/
+        dest: "/var/www/app1/"
+        remote_src: true
+
+    - name: Create virtual host configuration for app1
+      template:
+        src: /vagrant/playbooks/app1.conf
+        dest: "/etc/apache2/sites-available/app1.conf"
+      notify:
+        - enable app1 site
+
+    - name: Create directories for virtual hosts
+      file:
+        path: "/var/www/app2"
+        state: directory
+
+    - name: Copy app2 files to virtual host directory
+      copy:
+        src: /code/app4/web/
+        dest: "/var/www/app2/"
+        remote_src: true
+
+    - name: Create virtual host configuration for app2
+      template:
+        src: /vagrant/playbooks/app2.conf
+        dest: /etc/apache2/sites-available/app2.conf
+      notify:
+        - enable app2 site
+
+    - name: Copy apache2 ports config file
+      copy:
+        src: /vagrant/playbooks/ports.conf
+        dest: "/etc/apache2/ports.conf"
+        remote_src: true
+
+  handlers:
+    - name: enable app1 site
+      command: a2ensite app1
+      notify:
+        - restart apache
+
+    - name: enable app2 site
+      command: a2ensite app2
+      notify:
+        - restart apache
+
+    - name: restart apache
+      service:
+        name: apache2
+        state: restarted
+
+- name: Deploy databases on db
+  hosts: db
+  become: true
+  tasks:
+    - name: Add first db
+      shell: mysql -u root --password=root < /code/app2/db/db_setup.sql
+
+    - name: Add second db
+      shell: mysql -u root --password=root < /code/app4/db/db_setup.sql
+
+- name: Open web ports on UFW
+  hosts: web
+  become: true
+  tasks:
+    - name: Allow incoming traffic on port 8001
+      ufw:
+        rule: allow
+        port: 8001
+
+    - name: Allow incoming traffic on port 8002
+      ufw:
+        rule: allow
+        port: 8002
+
+- name: Open db port on UFW
+  hosts: db
+  become: true
+  tasks:
+    - name: Allow incoming traffic on port 3306
+      ufw:
+        rule: allow
+        port: 3306
+
+- name: Reload UFW
+  hosts: web, db
+  become: true
+  tasks:
+    - name: Reload UFW
+      ufw:
+        state: reloaded
